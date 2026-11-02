@@ -102,7 +102,7 @@
     "build": "node scripts/build.mjs",
     "typecheck": "tsc -p .",
     "test": "node --test \"test/unit/**/*.test.ts\"",
-    "test:integration": "npm run build && node test/integration/run.ts",
+    "test:integration": "node test/integration/run.ts",
     "package": "vsce package",
     "icon": "python scripts/make-icon.py media/icon.png",
     "vscode:prepublish": "npm run build"

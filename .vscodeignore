@@ -1,0 +1,9 @@
+# Ship an allow-list: everything is excluded except the files below.
+**
+!dist/extension.js
+!media/icon.png
+!README.md
+!CHANGELOG.md
+!LICENSE
+!NOTICE
+!package.json
