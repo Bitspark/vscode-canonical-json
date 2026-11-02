@@ -79,9 +79,15 @@ function sameDecimalValue(a: Decimal, b: Decimal): boolean {
  * returns the notices that explain any difference. Returns nothing for a
  * non-finite value; overflow is reported as an error by the parser.
  */
-export function numberNotices(raw: string, value: number, start: number, end: number): Issue[] {
-  if (!Number.isFinite(value)) return [];
+const NONE: readonly Issue[] = [];
+
+export function numberNotices(raw: string, value: number, start: number, end: number): readonly Issue[] {
+  if (!Number.isFinite(value)) return NONE;
   const canonical = serializeNumber(value);
+  const unsafe = Number.isInteger(value) && Math.abs(value) > MAX_SAFE_INTEGER;
+  // Fast path: the source already is the canonical spelling. (A spelling of
+  // zero is canonical only as "0", so this also rules out -0 and underflow.)
+  if (raw === canonical && !unsafe) return NONE;
   const source = toDecimal(raw);
   const shown = abbreviate(raw);
   const notices: Issue[] = [];
@@ -118,7 +124,7 @@ export function numberNotices(raw: string, value: number, start: number, end: nu
     });
   }
 
-  if (Number.isInteger(value) && Math.abs(value) > MAX_SAFE_INTEGER) {
+  if (unsafe) {
     notices.push({
       code: 'unsafe-integer',
       severity: 'warning',

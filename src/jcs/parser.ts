@@ -121,6 +121,16 @@ function describeChar(c: number): string {
 
 const LITERALS = ['true', 'false', 'null'] as const;
 
+/** Objects with up to this many members are checked for duplicates by linear scan. */
+const SCAN_LIMIT = 16;
+
+interface SurrogateSite {
+  readonly index: number;
+  readonly start: number;
+  readonly end: number;
+  readonly escaped: boolean;
+}
+
 const ESCAPES: Readonly<Record<string, string>> = {
   '"': '"',
   '\\': '\\',
@@ -292,7 +302,8 @@ class Parser {
     this.checkDepth(depth, start);
     this.pos++;
     const members: Member[] = [];
-    const seen = new Map<string, StringNode>();
+    // Small objects are checked for duplicates by scanning; larger ones get a map.
+    let seen: Map<string, StringNode> | undefined;
     this.skipWhitespace();
     if (text.charCodeAt(this.pos) === 0x7d) {
       this.pos++;
@@ -318,9 +329,23 @@ class Parser {
       }
       this.pos++;
       const value = this.parseValue(depth);
-      const first = seen.get(name.value);
+      let first: StringNode | undefined;
+      if (seen === undefined) {
+        for (let i = 0; i < members.length; i++) {
+          if (members[i]!.name.value === name.value) {
+            first = members[i]!.name;
+            break;
+          }
+        }
+        if (members.length >= SCAN_LIMIT) {
+          seen = new Map();
+          for (const member of members) if (!seen.has(member.name.value)) seen.set(member.name.value, member.name);
+        }
+      } else {
+        first = seen.get(name.value);
+      }
       if (first === undefined) {
-        seen.set(name.value, name);
+        seen?.set(name.value, name);
       } else {
         const shown = abbreviate(JSON.stringify(name.value));
         const escaped = first.raw !== name.raw ? ' after decoding escapes' : '';
@@ -484,8 +509,8 @@ class Parser {
     let p = start + 1;
     let value = '';
     let chunk = p;
-    /** Every surrogate code unit in the decoded value, with its source range. */
-    const surrogates: { index: number; start: number; end: number; escaped: boolean }[] = [];
+    /** Every surrogate code unit in the decoded value, with its source range (allocated on demand). */
+    let surrogates: SurrogateSite[] | undefined;
     for (;;) {
       if (p >= text.length) {
         this.fail(start, this.lineEnd(start), 'Unterminated string: missing closing `"`.');
@@ -514,7 +539,7 @@ class Parser {
           }
           const unit = parseInt(text.slice(p + 2, p + 6), 16);
           if (isHighSurrogate(unit) || isLowSurrogate(unit)) {
-            surrogates.push({ index: value.length, start: p, end: p + 6, escaped: true });
+            (surrogates ??= []).push({ index: value.length, start: p, end: p + 6, escaped: true });
           }
           value += String.fromCharCode(unit);
           p += 6;
@@ -544,19 +569,16 @@ class Parser {
         this.fail(p, p + 1, `Control character U+${hex4(c)} must be escaped in a string.`);
       }
       if (isHighSurrogate(c) || isLowSurrogate(c)) {
-        surrogates.push({ index: value.length + (p - chunk), start: p, end: p + 1, escaped: false });
+        (surrogates ??= []).push({ index: value.length + (p - chunk), start: p, end: p + 1, escaped: false });
       }
       p++;
     }
     this.pos = p;
-    if (surrogates.length > 0) this.checkSurrogates(value, surrogates);
+    if (surrogates !== undefined) this.checkSurrogates(value, surrogates);
     return { kind: 'string', start, end: p, raw: text.slice(start, p), value };
   }
 
-  private checkSurrogates(
-    value: string,
-    surrogates: readonly { index: number; start: number; end: number; escaped: boolean }[],
-  ): void {
+  private checkSurrogates(value: string, surrogates: readonly SurrogateSite[]): void {
     for (let i = 0; i < surrogates.length; i++) {
       const s = surrogates[i]!;
       const unit = value.charCodeAt(s.index);
