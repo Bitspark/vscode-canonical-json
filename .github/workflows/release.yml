@@ -1,0 +1,121 @@
+# Publishes the extension to the Visual Studio Marketplace.
+# Runbook: docs/RELEASING.md. Dispatch on `main` only.
+#
+# `package` builds and tests without credentials and uploads the .vsix and its
+# contents listing. `publish` waits in the protected `release` environment for
+# the developer's approval, so the uploaded package can be inspected first,
+# and then publishes exactly that file with Microsoft trusted publishing (OIDC).
+name: Release
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      file: ${{ steps.pack.outputs.file }}
+      sha256: ${{ steps.pack.outputs.sha256 }}
+    steps:
+      - name: Require main
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo "::error::Releases are dispatched on main only (got $GITHUB_REF)."
+          exit 1
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+
+      - name: Package
+        id: pack
+        run: |
+          version=$(node -p "require('./package.json').version")
+          file="canonical-json-${version}.vsix"
+          npx vsce package --out "$file"
+          sha256=$(sha256sum "$file" | cut -d' ' -f1)
+          {
+            echo "commit: $GITHUB_SHA"
+            echo "file:   $file"
+            echo "sha256: $sha256"
+            echo
+            unzip -l "$file"
+          } > vsix-contents.txt
+          cat vsix-contents.txt
+          echo "file=$file" >> "$GITHUB_OUTPUT"
+          echo "sha256=$sha256" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: vsix
+          path: ${{ steps.pack.outputs.file }}
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: vsix-contents
+          path: vsix-contents.txt
+          if-no-files-found: error
+
+  publish:
+    needs: package
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+
+      # Installs the locked @vscode/vsce; nothing is rebuilt.
+      - run: npm ci
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: vsix
+          path: release
+
+      - name: Verify the package is the one that was inspected
+        env:
+          FILE: ${{ needs.package.outputs.file }}
+          SHA256: ${{ needs.package.outputs.sha256 }}
+        run: echo "$SHA256  release/$FILE" | sha256sum --check
+
+      - name: Publish to the Visual Studio Marketplace
+        env:
+          FILE: ${{ needs.package.outputs.file }}
+        run: npx vsce publish --oidc --packagePath "release/$FILE"
+
+      # Open VSX is disabled until the `bitspark` namespace is verified on
+      # open-vsx.org (see docs/RELEASING.md). To enable: add `ovsx` as a pinned
+      # dev dependency, add the credential Open VSX requires to the `release`
+      # environment, and uncomment this step.
+      # - name: Publish to Open VSX
+      #   env:
+      #     FILE: ${{ needs.package.outputs.file }}
+      #     OVSX_PAT: ${{ secrets.OVSX_PAT }}
+      #   run: npx ovsx publish "release/$FILE" --pat "$OVSX_PAT"
