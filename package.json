@@ -1,0 +1,119 @@
+{
+  "name": "canonical-json",
+  "displayName": "Canonical JSON (RFC 8785)",
+  "description": "Show the exact RFC 8785 (JCS) canonical form of a JSON document and its SHA-256 digest, and explain why an input canonicalizes the way it does.",
+  "version": "0.1.0",
+  "publisher": "bitspark",
+  "license": "Apache-2.0",
+  "author": {
+    "name": "Bitspark GmbH"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Bitspark/vscode-canonical-json"
+  },
+  "bugs": {
+    "url": "https://github.com/Bitspark/vscode-canonical-json/issues"
+  },
+  "homepage": "https://github.com/Bitspark/vscode-canonical-json#readme",
+  "icon": "media/icon.png",
+  "galleryBanner": {
+    "color": "#16263a",
+    "theme": "dark"
+  },
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "RFC 8785",
+    "JCS",
+    "JSON canonicalization",
+    "canonical JSON",
+    "JSON Canonicalization Scheme",
+    "SHA-256",
+    "digest",
+    "hash",
+    "I-JSON"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": true
+    },
+    "virtualWorkspaces": true
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "canonicalJson.inspect",
+        "title": "Inspect Canonical JSON",
+        "category": "Canonical JSON"
+      },
+      {
+        "command": "canonicalJson.copy",
+        "title": "Copy Canonical JSON",
+        "category": "Canonical JSON"
+      },
+      {
+        "command": "canonicalJson.copySha256",
+        "title": "Copy SHA-256 of Canonical JSON",
+        "category": "Canonical JSON"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "canonicalJson.inspect",
+          "when": "activeEditor"
+        },
+        {
+          "command": "canonicalJson.copy",
+          "when": "activeEditor"
+        },
+        {
+          "command": "canonicalJson.copySha256",
+          "when": "activeEditor"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "canonicalJson.inspect",
+          "when": "editorLangId == json",
+          "group": "canonicalJson@1"
+        },
+        {
+          "command": "canonicalJson.copy",
+          "when": "editorLangId == json",
+          "group": "canonicalJson@2"
+        },
+        {
+          "command": "canonicalJson.copySha256",
+          "when": "editorLangId == json",
+          "group": "canonicalJson@3"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc -p .",
+    "test": "node --test \"test/unit/**/*.test.ts\"",
+    "test:integration": "npm run build && node test/integration/run.ts",
+    "package": "vsce package",
+    "icon": "python scripts/make-icon.py media/icon.png",
+    "vscode:prepublish": "npm run build"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "@types/vscode": "~1.90.0",
+    "@vscode/test-electron": "^3.1.0",
+    "@vscode/vsce": "^4.1.0",
+    "canonicalize": "^5.1.0",
+    "esbuild": "^0.28.2",
+    "typescript": "^7.0.2"
+  }
+}

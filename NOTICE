@@ -1,0 +1,36 @@
+Canonical JSON (RFC 8785) for Visual Studio Code
+Copyright 2026 Bitspark GmbH
+
+Licensed under the Apache License, Version 2.0 (see LICENSE).
+
+The packaged extension contains only code written for this project. The
+following third-party material is used by the test suite in the source
+repository and is not included in the extension package.
+
+1. test/vectors/cyberphone/
+
+   Test data from https://github.com/cyberphone/json-canonicalization at
+   commit 32a48195b9b20fe67b1795e39e4509f14d860b45: the files
+   testdata/input/*.json, testdata/output/*.json and testdata/outhex/*.txt,
+   unchanged, and numgen-static.txt, the static value table of the ES6
+   number test sequence described in testdata/README.md.
+
+   Copyright 2018 Anders Rundgren
+   Licensed under the Apache License, Version 2.0. That project's license
+   notice is reproduced in test/vectors/cyberphone/LICENSE.
+
+2. test/fixtures/rfc8785/
+
+   Examples transcribed from RFC 8785, "JSON Canonicalization Scheme (JCS)",
+   https://www.rfc-editor.org/rfc/rfc8785
+   Copyright (c) 2020 IETF Trust and the persons identified as the document
+   authors. All rights reserved. Code Components extracted from IETF documents
+   are available under the Revised BSD License, as described in the IETF
+   Trust Legal Provisions.
+
+3. test/unit/serialize.test.ts and test/unit/policy.test.ts
+
+   Several test cases restate, as JSON text, the hand-written edge cases in
+   https://github.com/erdtman/json-canonicalisation-comparison
+   (compliance/vectors/edge-cases.mjs).
+   Copyright (c) 2026 Samuel Erdtman, MIT License.

@@ -1,0 +1,7 @@
+* text=auto eol=lf
+
+# Test data is compared byte for byte: never convert line endings.
+test/vectors/** -text
+test/fixtures/** -text
+
+*.png binary
